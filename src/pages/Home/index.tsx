@@ -1,53 +1,65 @@
-import { Play } from "phosphor-react";
+import { useContext } from "react";
+import { HandPalm, Play } from "phosphor-react";
+import { useForm, FormProvider } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as zod from "zod";
+
+import { CycleForm } from "./components/CycleForm";
+import { Countdown } from "./components/Countdown";
+
 import {
-  CountdownContainer,
-  FormContainer,
   HomeContainer,
-  MinutesAmountInput,
-  Separator,
   StartCountdownButton,
-  TaskInput,
+  StopCountdownButton,
 } from "./styles";
+import { CyclesContext } from "../../contexts/CyclesContext";
 
-export const Home = () => (
-  <HomeContainer>
-    <form action=''>
-      <FormContainer>
-        <label htmlFor=''>I will work on</label>
-        <TaskInput
-          id='task'
-          list='task-list'
-          placeholder='Name your project here'
-        />
+type CycleFormData = zod.infer<typeof newCycleValidationSchema>;
 
-        <datalist id='task-list'>
-          <option value='Project 1' />
-        </datalist>
+const newCycleValidationSchema = zod.object({
+  task: zod.string().min(1, { message: "Task name is required" }),
+  minutesAmount: zod.number().positive().int().max(60).min(1),
+});
 
-        <label htmlFor=''>for</label>
-        <MinutesAmountInput
-          type='number'
-          id='minutesAmount'
-          placeholder='00'
-          step={5}
-          max={60}
-          min={0}
-        />
+export const Home = () => {
+  const { activeCycle, addCycle, stopCycle } = useContext(CyclesContext);
 
-        <span>minutes.</span>
-      </FormContainer>
+  const cycleForm = useForm<CycleFormData>({
+    resolver: zodResolver(newCycleValidationSchema),
+    defaultValues: {
+      task: "",
+      minutesAmount: 0,
+    },
+  });
 
-      <CountdownContainer>
-        <span>0</span>
-        <span>0</span>
-        <Separator>:</Separator>
-        <span>0</span>
-        <span>0</span>
-      </CountdownContainer>
+  const { handleSubmit, reset, watch } = cycleForm;
 
-      <StartCountdownButton type='submit'>
-        <Play size={24} /> Start
-      </StartCountdownButton>
-    </form>
-  </HomeContainer>
-);
+  const handleAddCycle = (data: CycleFormData) => {
+    addCycle(data);
+    reset();
+  };
+
+  const task = watch("task");
+  const isSubmitDisabled = !task;
+
+  return (
+    <HomeContainer>
+      <form onSubmit={handleSubmit(handleAddCycle)} action=''>
+        <FormProvider {...cycleForm}>
+          <CycleForm />
+        </FormProvider>
+        <Countdown />
+
+        {activeCycle ? (
+          <StopCountdownButton onClick={stopCycle} type='button'>
+            <HandPalm size={24} /> Stop
+          </StopCountdownButton>
+        ) : (
+          <StartCountdownButton disabled={isSubmitDisabled} type='submit'>
+            <Play size={24} /> Start
+          </StartCountdownButton>
+        )}
+      </form>
+    </HomeContainer>
+  );
+};
